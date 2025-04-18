@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Media;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -522,7 +523,11 @@ public partial class Main : Form
 
         // Get Simulator Data
         var text = Clipboard.GetText();
-        var set = new ShowdownSet(text);
+        ShowdownSet set;
+        if (ShowdownTeam.IsShowdownTeamURL(text, out var url) && ShowdownTeam.TryGetTeams(url, out var content, out _))
+            set = ShowdownParsing.GetShowdownSets(content).FirstOrDefault() ?? new(""); // take only first set
+        else
+            set = new ShowdownSet(text);
 
         if (set.Species == 0)
         { WinFormsUtil.Alert(MsgSimulatorFailClipboard); return; }
@@ -1342,7 +1347,8 @@ public partial class Main : Form
     {
         try
         {
-            if (!SaveFinder.TryDetectSaveFile(out var sav))
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            if (!SaveFinder.TryDetectSaveFile(cts.Token, out var sav))
                 return;
 
             var path = sav.Metadata.FilePath!;
